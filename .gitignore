@@ -1,0 +1,7 @@
+__pycache__/
+audio/
+cifar/
+data/
+models/
+spect_datasets/
+venv/

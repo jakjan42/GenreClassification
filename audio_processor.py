@@ -4,6 +4,13 @@ import os
 import shutil
 import cv2
 import simpleaudio as sa
+import csv
+
+def imshow(img):
+    img = img / 2 + 0.5     # unnormalize
+    npimg = img.numpy()
+    plt.imshow(np.transpose(npimg, (1, 2, 0)))
+    plt.show()
 
 
 def convert_to_spectrogram(path, sr=22050, n_fft=2048, hop_length=512):
@@ -16,7 +23,7 @@ def convert_to_spectrogram(path, sr=22050, n_fft=2048, hop_length=512):
     return librosa.power_to_db(spectrogram, ref=np.max)
 
 
-def audio_to_spectorgram(data_dir='data', audio_dir='audio'):
+def audio_to_spectorgram_dataset(data_dir='data', audio_dir='audio'):
     if not os.path.isdir(audio_dir):
         raise Exception("audio directory does not exit")
 
@@ -27,18 +34,49 @@ def audio_to_spectorgram(data_dir='data', audio_dir='audio'):
         shutil.rmtree(data_dir)
     os.mkdir(data_dir)
 
-    for dir in os.listdir(audio_dir):
-        os.mkdir(os.path.join(data_dir, dir))
+    train_path = os.path.join(data_dir, "train")
+    test_path = os.path.join(data_dir, "test")
+    os.mkdir(train_path)
+    os.mkdir(test_path)
 
+    genre_dict = {}
+
+    i = 0
+    for dir in os.listdir(audio_dir):
+        genre_dict[dir] = i
+        i += 1
+
+    test_labels = []
+    train_labels = []
     for genre in os.listdir(audio_dir):
+        samples_count = len(os.listdir(audio_dir))
+        i = 0
         for sample in os.listdir(os.path.join(audio_dir, genre)):
-            sample_name = os.path.splitext(sample)[0]
+            is_train_set = i / samples_count > 0.8
+            dir_path = train_path if is_train_set else test_path
+            data_file = os.path.splitext(sample)[0] + ".png"
             sample_path = os.path.join(audio_dir, genre, sample)
-            data_path = os.path.join(data_dir, genre, sample_name + ".png")
+            data_path = os.path.join(dir_path, data_file)
 
             spectorgram = convert_to_spectrogram(sample_path)
 
             cv2.imwrite(data_path, (spectorgram + 80.0).astype(np.uint8))
+
+            if is_train_set:
+                train_labels.append([data_file, genre_dict[genre]])
+            else:
+                test_labels.append([data_file, genre_dict[genre]])
+
+            i += 1
+
+    with open(os.path.join(test_path, "labels.csv"), 'w') as labels_file:
+        labels = csv.writer(labels_file)
+        labels.writerows(test_labels)
+    with open(os.path.join(train_path, "labels.csv"), 'w') as labels_file:
+        labels = csv.writer(labels_file)
+        labels.writerows(train_labels)
+
+    return genre_dict
 
 
 def load_spectrogram(path):
