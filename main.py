@@ -2,7 +2,6 @@ import numpy as np
 import torch.nn.functional as F
 from torch.autograd import Variable
 import torchvision.datasets.mnist
-import torchvision.datasets.mnist
 import genre_classifier as gc
 import audio_processor as ap
 import matplotlib.pyplot as plt
@@ -51,6 +50,16 @@ def get_CIFAR10_set(root="./data", transform=transforms.ToTensor()):
     
     return trainset, testset
 
+
+def get_MINST_set(root="./data", transform=transforms.ToTensor()):
+    testset = torchvision.datasets.mnist.MNIST(root=root, train=False,
+                                           download=True, transform=transform)
+    trainset = torchvision.datasets.mnist.MNIST(root=root, train=True,
+                                            download=True, transform=transform)
+    
+    return trainset, testset
+
+
 def get_spectrogram_set(root="spect_datasets", transform=transforms.ToTensor()):
     trainset = gc.SpectDataset(
         annotations_file=os.path.join(root, "train", "labels.csv"),
@@ -75,53 +84,53 @@ def main():
     transform = transforms.Compose([
         transforms.CenterCrop((218, 336)),
         transforms.ToTensor(),
-        transforms.RandomCrop((218, 200)),
+        transforms.RandomCrop((218, 100)),
         transforms.Normalize((0.5,), (0.5,))
     ])
+    # transform = transforms.Compose([
+    #     transforms.ToTensor(),
+    #     transforms.Normalize((0.5,), (0.5)),
+    # ])
 
 
-
-    batch_size = 64
-    trainset, testset = get_spectrogram_set(transform=transform, root='data')
-    # trainset, testset = get_CIFAR10_set(transform=transform)
+    batch_size = 32
+    trainset, testset = get_spectrogram_set(transform=transform)
     trainloader, testloader = get_data_loaders(trainset, testset, batch_size=batch_size)
     
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    # data = next(iter(trainloader))
-    # images, labels = data[0].to(device), data[1].to(device)
+    data = next(iter(trainloader))
+    images, labels = data[0].to(device), data[1].to(device)
     
-    # imshow(torchvision.utils.make_grid(images.cpu()))
+    imshow(torchvision.utils.make_grid(images.cpu()))
 
-    # cnn_path = 'spect_cnn3xconv3x3.pth'
-    net = gc.SpectCnn(num_channels=3).to(device)
+    cnn_path = 'spect_cnn.pth'
+    # net = gc.SpectCnn(num_channels=3).to(device)
     # net.load_state_dict(torch.load(cnn_path, weights_only=True))
 
-    transform = transforms.Normalize((0.5), (0.5))
-    # # transform = None
-    ds = gc.NumericalFeatureDataset('features/features_30_sec.csv',
-                                    transform=transform)
-    v, l = ds[0]
-    print(v)
-    print(l)
-    trainloader = torch.utils.data.DataLoader(ds, batch_size=batch_size,
-                                              shuffle=True, num_workers=2)
-    net = gc.FeatureNetwork(num_features=58).to(device=device)
-    # net = gc.SpectCnn(img_w=32, img_h=32, num_channels=3).to(device)
+    # transform = transforms.Normalize((0.5), (0.5))
+    # transform = None
+    # ds = gc.NumericalFeatureDataset('features/features_3_sec.csv',
+    #                                 transform=None)
+    # v, l = ds[0]
+    # print(v)
+    # print(l)
+    # trainloader = torch.utils.data.DataLoader(ds, batch_size=batch_size,
+    #                                           shuffle=True, num_workers=2)
+    # net = gc.FeatureNetwork(num_features=28*28).to(device=device)
+    net = gc.SpectCnn(img_w=100, img_h=218, num_channels=3).to(device)
 
     criterion = nn.CrossEntropyLoss()
-    # optimizer = optim.Adam(net.parameters())
-    optimizer = torch.optim.Adam(net.parameters(), lr=1e-4, weight_decay=1e-4)
+    optimizer = torch.optim.Adam(net.parameters(), lr=5e-4, weight_decay=1e-5)
 
     epochs = 50
     net.train_model(trainloader, epochs=epochs,
-                    loss_threshold=0.1,
+                    loss_threshold=0.2,
                     optimizer=optimizer,
                     loss=criterion,
                     device=device)
 
     print('Finished Training')
-    cnn_path = "feature_FFNN.pth"
     torch.save(net.state_dict(), cnn_path)
     print(f'Train accuracy: {net.validate(trainloader, device=device)}')
     print(f'Test accuracy: {net.validate(testloader, device=device)}')

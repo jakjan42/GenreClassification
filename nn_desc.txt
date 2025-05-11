@@ -14,3 +14,107 @@ test = 58.43
         x = torch.flatten(x, 1)
         x = F.relu(self.fc1(x))
         x = self.fc3(x)
+
+spect_cnn_00002:
+train = 87.11
+test = 65.17
+    init(1, 10, 100, 218)
+        self.conv_layers = nn.Sequential(
+            nn.Conv2d(num_channels, 32, 3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(3, 2),
+            nn.BatchNorm2d(32),
+            # nn.Dropout(0.2),
+
+            nn.Conv2d(32, 32, 3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(3, 2),
+            nn.BatchNorm2d(32),
+            # nn.Dropout(0.2),
+
+            nn.Conv2d(32, 32, 2),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2),
+            nn.BatchNorm2d(32),
+            # nn.Dropout(0.2),
+        )
+
+        self.fc_layers = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(19968, 256),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(256, 64),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(64, num_classes)
+        )
+
+
+spect_cnn_00003:
+train = 86.23
+test = 58.43
+    init(1, 10, 200, 128)
+        self.conv_layers = nn.Sequential(
+            nn.Conv2d(num_channels, 32, 3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(3, 2),
+            nn.BatchNorm2d(32),
+
+            nn.Conv2d(32, 32, 3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(3, 2),
+            nn.BatchNorm2d(32),
+
+            nn.Conv2d(32, 32, 2),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2),
+            nn.BatchNorm2d(32),
+        )
+
+        self.fc_layers = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(19968, 256),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(256, 64),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(64, num_classes)
+        )
+
+
+spect_cnn_00004:
+train = 87.67
+test = 61.80
+    init(3, 10, 200, 218)
+        self.conv_layers = nn.Sequential(
+            nn.Conv2d(num_channels, 32, 3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(3, 2),
+            nn.BatchNorm2d(32),
+            # nn.Dropout(0.2),
+
+            nn.Conv2d(32, 32, 3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(3, 2),
+            nn.BatchNorm2d(32),
+            # nn.Dropout(0.2),
+
+            nn.Conv2d(32, 32, 2),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2),
+            nn.BatchNorm2d(32),
+            # nn.Dropout(0.2),
+        )
+
+        self.fc_layers = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(9152, 256),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(256, 64),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(64, num_classes)
+        )

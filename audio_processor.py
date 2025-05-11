@@ -6,15 +6,10 @@ import cv2
 import simpleaudio as sa
 import csv
 
-def imshow(img):
-    img = img / 2 + 0.5     # unnormalize
-    npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.show()
 
 
 def convert_to_spectrogram(path, sr=22050, n_fft=2048, hop_length=512):
-    signal, sr = librosa.load(path)
+    signal, sr = librosa.load(path, sr=sr)
     mel_signal = librosa.feature.melspectrogram(y=signal, sr=sr,
                                                 hop_length=hop_length,
                                                 n_fft=n_fft)
