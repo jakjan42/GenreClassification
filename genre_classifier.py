@@ -14,6 +14,8 @@ import torchaudio
 import torchaudio.transforms as aT
 import audio_processor as ap
 from torchvision.io import read_image
+import librosa
+import matplotlib.pyplot as plt
 
 
 
@@ -343,21 +345,42 @@ class SpectCnn(nn.Module):
         return 100.0 * correct / total
     
 
+    def plot_spectrogram(specgram, title=None, ylabel="freq_bin", ax=None):
+        if ax is None:
+            _, ax = plt.subplots(1, 1)
+        if title is not None:
+            ax.set_title(title)
+        ax.set_ylabel(ylabel)
+        ax.imshow(librosa.power_to_db(specgram), origin="lower", aspect="auto", interpolation="nearest")
+
+
+    def normalize01(tensor):
+        return (tensor - tensor.min()) / (tensor.max() - tensor.min()) 
+
     if __name__ == "__main__":
         sr = 22050
         # transform = None
+        # mel_spectrogram = aT.MelSpectrogram(
+        #     sample_rate=sr,
+        #     n_fft=2048,
+        #     hop_length=512,
+        #     center=True,
+        #     pad_mode="reflect",
+        #     power=2.0,
+        #     norm="slaney",
+        #     n_mels=128,
+        #     mel_scale="htk",
+        # )
         transform = transforms.Compose([
             aT.MelSpectrogram(sr, n_fft=2048, hop_length=512, n_mels=128),
-            aT.AmplitudeToDB(80),
+            # mel_spectrogram,
             transforms.RandomCrop((128, 200)),
+            aT.AmplitudeToDB(80),
+            transforms.Lambda(normalize01),
             transforms.Normalize((0.5,), (0.5))
         ])
         ds = AudioDataset(subset="train", sr=sr, transform=transform)
-        # for i in range(len(ds)):
-        #     n, l = ds[i]
-        #     print(n, ds.classes[l])
-        # print(len(ds))
-        wf, sr, l = ds[200]
-        wf -= wf.min()
-        wf /= wf.max()
+        wf, sr, l = ds[0]
+        import main as m
+        m.imshow(wf)
         print(wf, sr, ds.classes[l])
