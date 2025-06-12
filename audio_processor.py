@@ -2,9 +2,9 @@ import numpy as np
 import librosa
 import os
 import shutil
-import cv2
 import simpleaudio as sa
 import csv
+import cv2
 
 
 

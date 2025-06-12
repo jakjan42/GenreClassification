@@ -16,14 +16,18 @@ from torch import nn
 from tqdm import tqdm
 from torchmetrics import *
 import pandas as pd
+import torchaudio.transforms as aT
 import csv
-import cv2
 
+def normalize01(tensor):
+    return (tensor - tensor.min()) / (tensor.max() - tensor.min()) 
 
 def imshow(img):
     img = img / 2 + 0.5     # unnormalize
     npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
+    # plt.imshow(Ep.transpose(npimg, (1, 2, 0)))
+    t = np.transpose(npimg, (1, 2, 0))
+    plt.imshow(t, cmap='gray', vmin=0, vmax=1)
     plt.show()
 
 def get_data_loaders(trainset, testset, batch_size=16,
@@ -81,20 +85,32 @@ def main():
     # ap.audio_to_spectorgram_dataset(data_dir='data',
     #                                 audio_dir='audio')
 
-    transform = transforms.Compose([
-        transforms.CenterCrop((218, 336)),
-        transforms.ToTensor(),
-        transforms.RandomCrop((218, 100)),
-        transforms.Normalize((0.5,), (0.5,))
-    ])
+    # transform = transforms.Compose([
+    #     transforms.CenterCrop((218, 336)),
+    #     transforms.ToTensor(),
+    #     transforms.RandomCrop((218, 100)),
+    #     transforms.Normalize((0.5,), (0.5,))
+    # ])
     # transform = transforms.Compose([
     #     transforms.ToTensor(),
     #     transforms.Normalize((0.5,), (0.5)),
     # ])
 
+    sr = 22050
+    n_mels = 256
+    transform = transforms.Compose([
+        aT.MelSpectrogram(sr, n_fft=2048, hop_length=512, n_mels=n_mels),
+        transforms.RandomCrop((n_mels, 200)),
+        aT.AmplitudeToDB(80),
+        transforms.Lambda(normalize01),
+        transforms.Normalize((0.5,), (0.5))
+    ])
 
     batch_size = 32
-    trainset, testset = get_spectrogram_set(transform=transform)
+
+    trainset = gc.AudioDataset(subset="train", sr=sr, transform=transform)
+    testset = gc.AudioDataset(subset="test", sr=sr, transform=transform)
+    # trainset, testset = get_spectrogram_set(transform=transform)
     trainloader, testloader = get_data_loaders(trainset, testset, batch_size=batch_size)
     
 
@@ -110,22 +126,24 @@ def main():
 
     # transform = transforms.Normalize((0.5), (0.5))
     # transform = None
-    # ds = gc.NumericalFeatureDataset('features/features_3_sec.csv',
-    #                                 transform=None)
+    # ds = gc.NumericalFeatureDataset('features/features_30_sec.csv',
+    #                                 transform=transform)
     # v, l = ds[0]
     # print(v)
     # print(l)
+    # print(v.shape)
     # trainloader = torch.utils.data.DataLoader(ds, batch_size=batch_size,
     #                                           shuffle=True, num_workers=2)
-    # net = gc.FeatureNetwork(num_features=28*28).to(device=device)
-    net = gc.SpectCnn(img_w=100, img_h=218, num_channels=3).to(device)
+    # net = gc.FeatureNetwork(num_features=57).to(device=device)
+    net = gc.SpectCnn(img_w=200, img_h=n_mels, num_channels=1).to(device)
+
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(net.parameters(), lr=5e-4, weight_decay=1e-5)
 
-    epochs = 50
+    epochs = 30
     net.train_model(trainloader, epochs=epochs,
-                    loss_threshold=0.2,
+                    loss_threshold=0.1,
                     optimizer=optimizer,
                     loss=criterion,
                     device=device)
@@ -133,58 +151,7 @@ def main():
     print('Finished Training')
     torch.save(net.state_dict(), cnn_path)
     print(f'Train accuracy: {net.validate(trainloader, device=device)}')
-    print(f'Test accuracy: {net.validate(testloader, device=device)}')
-
-    # data = next(iter(testloader))
-    # images, labels = data[0].to(device), data[1].to(device)
-    # outputs = net(images)
-    # _, predicted = torch.max(outputs, 1)
-    # classes = ('plane', 'car', 'bird', 'cat',
-    #        'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
-    # print([classes[p] for p in predicted])
-    # imshow(torchvision.utils.make_grid(images.cpu()))
-    
-    # data_dir="spect_datasets"
-    # spect_dir="spectrograms"
-    # # os.mkdir(data_dir)
-    # train_path = os.path.join(data_dir, "train")
-    # test_path = os.path.join(data_dir, "test")
-    # # os.mkdir(train_path)
-    # # os.mkdir(test_path)
-    # genre_dict = {}
-
-    # i = 0
-    # for dir in os.listdir(spect_dir):
-    #     genre_dict[dir] = i
-    #     i += 1
-
-    # test_labels = []
-    # train_labels = []
-    # for genre in os.listdir(spect_dir):
-    #     samples_count = len(os.listdir(spect_dir))
-    #     i = 0
-    #     for sample in os.listdir(os.path.join(spect_dir, genre)):
-    #         is_train_set = i / samples_count > 0.8
-    #         data_file = sample
-    #         dir_path = train_path if is_train_set else test_path
-    #         sample_path = os.path.join(spect_dir, genre, sample)
-    #         data_path = os.path.join(dir_path, data_file)
-
-    #         os.rename(sample_path, data_path)
-
-    #         if is_train_set:
-    #             train_labels.append([data_file, genre_dict[genre]])
-    #         else:
-    #             test_labels.append([data_file, genre_dict[genre]])
-
-    #         i += 1
-
-    # with open(os.path.join(test_path, "labels.csv"), 'w') as labels_file:
-    #     labels = csv.writer(labels_file)
-    #     labels.writerows(test_labels)
-    # with open(os.path.join(train_path, "labels.csv"), 'w') as labels_file:
-    #     labels = csv.writer(labels_file)
-    #     labels.writerows(train_labels)
+    # print(f'Test accuracy: {net.validate(testloader, device=device)}')
 
 
 if __name__ == "__main__":
