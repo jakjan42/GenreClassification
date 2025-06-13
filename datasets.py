@@ -138,7 +138,8 @@ class NumericalFeatureDataset(Dataset):
         
         data = pd.read_csv(file, nrows=1)
         cols = list(data.columns)
-        cols.remove("filename")
+        if "filename" in cols:
+            cols.remove("filename")
         cols.remove("label")
         cols.remove("length")
         data = pd.read_csv(file, usecols=cols)

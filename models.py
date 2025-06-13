@@ -13,17 +13,23 @@ class FeatureNetwork(nn.Module):
             nn.BatchNorm1d(num_features),
             nn.Linear(num_features, 512),
             nn.ReLU(),
-            nn.Dropout(0.5),
+            # nn.Dropout(0.5),
+            nn.Dropout(0.45),
             nn.Linear(512, 256),
             nn.ReLU(),
-            nn.Dropout(0.4),
+            # nn.Dropout(0.4),
+            nn.Dropout(0.35),
             nn.Linear(256, 128),
             nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(128, 16),
+            # nn.Dropout(0.3),
+            nn.Dropout(0.25),
+            # nn.Linear(128, 16),
+            nn.Linear(128, 64),
             nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(16, 10)
+            # nn.Dropout(0.2),
+            nn.Dropout(0.15),
+            # nn.Linear(16, 10)
+            nn.Linear(64, 10)
         )
 
     def forward(self, x):
