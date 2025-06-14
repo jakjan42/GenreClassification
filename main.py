@@ -23,6 +23,52 @@ import csv
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from sklearn.manifold import TSNE
+import seaborn as sns
+
+def plot_tsne_projection(features_df, labels, title="Data Projection into 2D Subspace - t-SNE"):
+    
+    if isinstance(features_df, pd.DataFrame):
+        features_array = features_df.values
+    else:
+        features_array = features_df
+
+    # standarization crucial for t-SNE
+    scaler = StandardScaler()
+    scaled_features = scaler.fit_transform(features_array)
+    # print(f"Features scaled. Original shape: {features_array.shape}, Scaled shape: {scaled_features.shape}")
+
+    # dimensionality reduction to 2 dimensions
+    # n_components=2 -> 2D visualization
+    # perplexity -> balance attention between local and global aspects of data
+    # n_iter -> number of iterations for the optimization
+    # random_state -> reproducibility
+    # perplexity and n_iter may need tuning
+    tsne = TSNE(n_components=2, random_state=42, perplexity=30, n_iter=1000)
+    tsne_results = tsne.fit_transform(scaled_features)
+
+    # dataframe for plotting with seaborn
+    plot_df = pd.DataFrame(data=tsne_results, columns=['First Component', 'Second Component'])
+    plot_df['label'] = labels
+
+    # seaborn plot
+    plt.figure(figsize=(10, 8))
+    sns.scatterplot(
+        x="First Component",
+        y="Second Component",
+        hue="label", # colors
+        palette=sns.color_palette("hsv", n_colors=len(np.unique(labels))),
+        data=plot_df,
+        legend="full", # full legend
+        alpha=0.8, # slightly transparent points
+        s=13 # size of points
+    )
+    plt.title(title, fontsize=14)
+    plt.xlabel("First Component", fontsize=12)
+    plt.ylabel("Second Component", fontsize=12)
+    plt.grid(True, linestyle='--', alpha=0.7) # grid
+    plt.tight_layout() # for labels overlapping
+    plt.show()
 
 def normalize01(tensor):
     return (tensor - tensor.min()) / (tensor.max() - tensor.min()) 
@@ -206,6 +252,9 @@ def main():
                     device=device)
 
     print('Finished Training')
+
+    plot_tsne_projection(X_full, y_full)
+
     #torch.save(net.state_dict(), cnn_path)
     feature_net_path = 'feature_network.pth' 
     torch.save(net.state_dict(), feature_net_path)
