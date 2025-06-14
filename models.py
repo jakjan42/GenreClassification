@@ -4,6 +4,9 @@ from torch import nn
 import librosa
 import matplotlib.pyplot as plt
 
+from sklearn.metrics import confusion_matrix, classification_report
+import seaborn as sns
+
 
 class FeatureNetwork(nn.Module):
     def __init__(self, num_classes=10, num_features=58):
@@ -47,9 +50,11 @@ class FeatureNetwork(nn.Module):
         if loss is None:
             loss = nn.CrossEntropyLoss()
 
-        history = []
+        train_loss_history = []
+        val_accuracy_history = []
         for epoch in range(epochs):
             self.train()
+            running_loss = 0.0
             for i, data in enumerate(trainloader, 0):
                 inputs, labels = data[0].to(device), data[1].to(device)
                 optimizer.zero_grad()
@@ -59,21 +64,28 @@ class FeatureNetwork(nn.Module):
                 loss_val = loss(outputs, labels)
                 loss_val.backward()
                 optimizer.step()
+                running_loss += loss_val.item()
+
+            avg_train_loss = running_loss / len(trainloader)
+            train_loss_history.append(avg_train_loss)
+
+            print_str = f'Epoch [{epoch+1}/{epochs}], Loss: {avg_train_loss:.4f}'
 
             if testloader is None:
                 val_accuracy = ''
             else:
-                val_accuracy = f'validation accuracy \
-                    {self.validate(testloader, device=device)}'
+                self.eval()
+                val_accuracy = self.validate(testloader, device=device)         
+                val_accuracy_history.append(val_accuracy)
+                self.train()
+                print_str += f', Validation Accuracy: {val_accuracy:.2f}%'
 
-            print(f'Epoch [{epoch+1}/{epochs}], Loss: {loss_val.item():.4f} \
-                  {val_accuracy}')
-            history.append(loss_val.item())
+            print(print_str)
 
             if loss_val.item() < loss_threshold:
                 break
 
-        return history
+        return train_loss_history, val_accuracy_history
     
     def validate(self, testloader, device='cpu'):
         correct = 0
@@ -87,6 +99,85 @@ class FeatureNetwork(nn.Module):
                 correct += (predicted == labels).sum().item()
 
         return 100.0 * correct / total
+    
+# plotting training loss and validation accuracy
+def plot_training_history(train_loss_hist, val_accuracy_hist, epochs, title="Training History", save_path=None):
+    plt.figure(figsize=(12, 6))
+
+    # training Loss
+    plt.subplot(1, 2, 1)
+    plt.plot(range(1, len(train_loss_hist) + 1), train_loss_hist, label='Training Loss', color='blue')
+    plt.title('Training Loss per Epoch')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.legend()
+
+    # validation accuracy
+    plt.subplot(1, 2, 2)
+    plt.plot(range(1, len(val_accuracy_hist) + 1), val_accuracy_hist, label='Validation Accuracy', color='green')
+    plt.title('Validation Accuracy per Epoch')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy (%)')
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.legend()
+
+    plt.suptitle(title, fontsize=16)
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    
+    plt.show()
+
+# plot confusion matrix
+def plot_confusion_matrix(model, dataloader, device, class_names, title="Confusion Matrix", save_path=None):
+    model.eval()
+    all_preds = []
+    all_labels = []
+
+    with torch.no_grad():
+        for inputs, labels in dataloader:
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            outputs = model(inputs)
+            _, predicted = torch.max(outputs, 1)
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
+    cm = confusion_matrix(all_labels, all_preds)
+    
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False,
+                xticklabels=class_names, yticklabels=class_names)
+    plt.xlabel('Predicted Label')
+    plt.ylabel('True Label')
+    plt.title(title)
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+
+    plt.show()
+
+# classification report
+def print_classification_report(model, dataloader, device, class_names):
+    model.eval()
+    all_preds = []
+    all_labels = []
+
+    with torch.no_grad():
+        for inputs, labels in dataloader:
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            outputs = model(inputs)
+            _, predicted = torch.max(outputs, 1)
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+    
+    print("\n--- Classification Report ---")
+    report = classification_report(all_labels, all_preds, target_names=class_names)
+    print(report)
 
 
 class SpectCnn(nn.Module):

@@ -26,7 +26,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.manifold import TSNE
 import seaborn as sns
 
-def plot_tsne_projection(features_df, labels, title="Data Projection into 2D Subspace - t-SNE"):
+# visualisation of feature input data
+def plot_tsne_projection(features_df, labels, title="Data Projection into 2D Subspace - t-SNE", save_path=None):
     
     if isinstance(features_df, pd.DataFrame):
         features_array = features_df.values
@@ -60,7 +61,7 @@ def plot_tsne_projection(features_df, labels, title="Data Projection into 2D Sub
         palette=sns.color_palette("hsv", n_colors=len(np.unique(labels))),
         data=plot_df,
         legend="full", # full legend
-        alpha=0.8, # slightly transparent points
+        alpha=1.0, # slightly transparent points
         s=13 # size of points
     )
     plt.title(title, fontsize=14)
@@ -68,6 +69,9 @@ def plot_tsne_projection(features_df, labels, title="Data Projection into 2D Sub
     plt.ylabel("Second Component", fontsize=12)
     plt.grid(True, linestyle='--', alpha=0.7) # grid
     plt.tight_layout() # for labels overlapping
+
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.show()
 
 def normalize01(tensor):
@@ -181,6 +185,8 @@ def main():
     X_full = full_df[feature_columns]
     y_full = full_df['label']
 
+    #plot_tsne_projection(X_full, y_full, save_path="plots/tsne_data_projection_plot.png")
+
     # splitting into test and train
     X_train, X_test, y_train, y_test = train_test_split(
         X_full, y_full, test_size=0.2, random_state=42, stratify=y_full
@@ -228,6 +234,7 @@ def main():
     # trainloader = torch.utils.data.DataLoader(numerical, batch_size=batch_size,
     #                                           shuffle=True, num_workers=2)
     # net = mod.FeatureNetwork(num_features=57).to(device=device)
+    class_names = sorted(list(full_df['label'].unique()))
     num_classes = 10
     net = mod.FeatureNetwork(num_features=actual_num_features, num_classes=num_classes).to(device=device)
     #net = mod.SpectCnn(img_w=200, img_h=n_mels, num_channels=1).to(device)
@@ -244,7 +251,7 @@ def main():
     # )
 
     epochs = 30
-    net.train_model(trainloader, epochs=epochs,
+    train_loss_hist, val_accuracy_hist = net.train_model(trainloader, epochs=epochs,
                     loss_threshold=0.1,
                     optimizer=optimizer,
                     loss=criterion,
@@ -253,7 +260,15 @@ def main():
 
     print('Finished Training')
 
-    plot_tsne_projection(X_full, y_full)
+    mod.plot_training_history(train_loss_hist, val_accuracy_hist, epochs=30,
+                          title="Training Loss and Validation Accuracy Over Epochs",
+                          save_path="plots/feature_training_history.png")
+
+    mod.plot_confusion_matrix(net, testloader, device, class_names,
+                          title="Confusion Matrix on Test Set",
+                          save_path="plots/feature_confusion_matrix.png")
+    
+    mod.print_classification_report(net, testloader, device, class_names)
 
     #torch.save(net.state_dict(), cnn_path)
     feature_net_path = 'feature_network.pth' 
